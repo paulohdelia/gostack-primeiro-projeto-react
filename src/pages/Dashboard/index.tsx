@@ -1,35 +1,82 @@
-import React from 'react';
+import React, { FormEvent, useState } from 'react';
 import { FiChevronRight } from 'react-icons/fi';
+
+import api from '../../services/api';
 
 import logoImg from '../../assets/github-explorer-logo.svg';
 
-import { Title, Form, Repositories } from './styles';
+import {
+  Title, Form, Repositories, Error,
+} from './styles';
 
-const Dashboard: React.FC = () => (
-  <>
-    <img src={logoImg} alt="Github Explorer" />
-    <Title>Explore repositórios no Github</Title>
+interface Repository {
+  full_name: string;
+  description: string;
+  owner: {
+    login: string;
+    avatar_url: string;
+  }
+}
 
-    <Form>
-      <input placeholder="Digite o nome do repositório" />
-      <button type="submit">Pesquisar</button>
-    </Form>
+const Dashboard: React.FC = () => {
+  const [newRepo, setNewRepo] = useState('');
+  const [inputError, setInputError] = useState('');
+  const [repositories, setRepositories] = useState<Repository[]>([]);
 
-    <Repositories>
-      <a href="teste">
-        <img
-          src="https://avatars0.githubusercontent.com/u/47276018?s=60&v=4"
-          alt="Paulo D'Elia"
+  async function handleAddRepository(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+
+    if (!newRepo) {
+      setInputError('Digite o autor/nome do repositório.');
+      return;
+    }
+
+    try {
+      const response = await api.get<Repository>(`repos/${newRepo}`);
+      const repository = response.data;
+
+      setRepositories([...repositories, repository]);
+      setNewRepo('');
+      setInputError('');
+    } catch (err) {
+      setInputError('O repositório não foi encontrado.');
+    }
+  }
+
+  return (
+    <>
+      <img src={logoImg} alt="Github Explorer" />
+      <Title>Explore repositórios no Github</Title>
+
+      <Form hasError={!!inputError} onSubmit={handleAddRepository}>
+        <input
+          value={newRepo}
+          onChange={(e) => setNewRepo(e.target.value)}
+          placeholder="Digite o nome do repositório"
         />
+        <button type="submit">Pesquisar</button>
+      </Form>
 
-        <div>
-          <strong>paulohdelia/gobarber-gostack</strong>
-          <p>Desenvolvendo o projeto durante o bootcamp GoStack</p>
-        </div>
+      { inputError && <Error>{inputError}</Error>}
 
-        <FiChevronRight size={20} />
-      </a>
-    </Repositories>
-  </>
-);
+      <Repositories>
+        {repositories.map(({ description, full_name, owner }) => (
+          <a key={full_name} href="teste">
+            <img
+              src={owner.avatar_url}
+              alt={owner.login}
+            />
+
+            <div>
+              <strong>{full_name}</strong>
+              <p>{description}</p>
+            </div>
+
+            <FiChevronRight size={20} />
+          </a>
+        ))}
+      </Repositories>
+    </>
+  );
+};
 export default Dashboard;
